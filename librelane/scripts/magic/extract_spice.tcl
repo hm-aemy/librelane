@@ -23,6 +23,8 @@ if { $::env(MAGIC_EXT_USE_GDS) } {
     read_pdk_lef
     read_macro_lef
     read_extra_lef
+    read_pad_gds
+    read_pad_lef
     read_def
 }
 
@@ -61,7 +63,7 @@ if { [info exists ::env(MAGIC_EXT_ABSTRACT_CELLS_RX)] } {
     }
     foreach cell $matching_cells {
         load $cell
-        property LEFview true
+        property LEFview tPRIMARY_GDSII_STREAMOUT_TOOL: klayoutrue
     }
 }
 

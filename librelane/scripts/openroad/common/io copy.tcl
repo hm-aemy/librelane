@@ -99,35 +99,23 @@ proc read_pdn_cfg {} {
 
     # Compatibility Layer for Deprecated Variables That May Still Be Used By
     # User Files
-    set unset_list {
-        DESIGN_IS_CORE
-        PDN_ENABLE_MACROS_GRID
-        PDN_RAILS_LAYER
-        PDN_UPPER_LAYER
-        PDN_LOWER_LAYER
-    }
-    set ::env(DESIGN_IS_CORE) $::env(PDN_MULTILAYER)
-    set ::env(PDN_ENABLE_MACROS_GRID) $::env(PDN_CONNECT_MACROS_TO_GRID)
-    set ::env(PDN_RAILS_LAYER) $::env(PDN_RAIL_LAYER)
-    set ::env(PDN_UPPER_LAYER) $::env(PDN_HORIZONTAL_LAYER)
-    set ::env(PDN_LOWER_LAYER) $::env(PDN_VERTICAL_LAYER)
-    foreach key [array names ::env] {
-        if { [string match PDN_* $key] } {
-            set fp_name FP_$key
-            lappend unset_list $fp_name
-            set ::env($fp_name) $::env($key)
-        }
-    }
+    set ::env(DESIGN_IS_CORE) $::env(FP_PDN_MULTILAYER)
+    set ::env(FP_PDN_ENABLE_MACROS_GRID) $::env(PDN_CONNECT_MACROS_TO_GRID)
+    set ::env(FP_PDN_RAILS_LAYER) $::env(FP_PDN_RAIL_LAYER)
+    set ::env(FP_PDN_UPPER_LAYER) $::env(FP_PDN_HORIZONTAL_LAYER)
+    set ::env(FP_PDN_LOWER_LAYER) $::env(FP_PDN_VERTICAL_LAYER)
 
-    if {[catch {source $::env(PDN_CFG)} errmsg]} {
+    if {[catch {source $::env(FP_PDN_CFG)} errmsg]} {
         puts stderr $errmsg
         exit 1
     }
 
     # Restore Environment
-    foreach unsettable $unset_list {
-        unset ::env($unsettable)
-    }
+    unset ::env(DESIGN_IS_CORE)
+    unset ::env(FP_PDN_ENABLE_MACROS_GRID)
+    unset ::env(FP_PDN_RAILS_LAYER)
+    unset ::env(FP_PDN_UPPER_LAYER)
+    unset ::env(FP_PDN_LOWER_LAYER)
 }
 
 
@@ -193,9 +181,9 @@ proc read_timing_info {args} {
     foreach nl $::env(_CURRENT_CORNER_NETLISTS) {
         puts "Reading macro netlist at '$nl'…"
         if { [catch {read_verilog $nl} err] } {
-            puts stderr "Error while reading macro netlist '$nl':"
-            puts stderr $err
-            puts stderr "Make sure that this a gate-level netlist and not an RTL file."
+            puts "Error while reading macro netlist '$nl':"
+            puts $err
+            puts "Make sure that this a gate-level netlist and not an RTL file."
             exit 1
         }
     }
@@ -204,9 +192,9 @@ proc read_timing_info {args} {
             if { [string_in_file $verilog_file $blackbox_wildcard] } {
                 puts "Found '$blackbox_wildcard' in '$verilog_file', skipping…"
             } elseif { [catch {puts "Reading Verilog model at '$verilog_file'…"; read_verilog $verilog_file} err] } {
-                puts stderr "Error while reading $verilog_file:"
-                puts stderr $err
-                puts stderr "Make sure that this a gate-level netlist and not an RTL file, otherwise, you can add the following comment '$blackbox_wildcard' in the file to skip it and blackbox the modules inside if needed."
+                puts "Error while reading $verilog_file:"
+                puts $err
+                puts "Make sure that this a gate-level netlist and not an RTL file, otherwise, you can add the following comment '$blackbox_wildcard' in the file to skip it and blackbox the modules inside if needed."
                 exit 1
             }
         }
@@ -442,31 +430,20 @@ proc write_views {args} {
         write_verilog $::env(SAVE_NL)
     }
 
-    if { [info exists ::env(SAVE_LOGICAL_NL)] } {
-        puts "Writing logic-only netlist to '$::env(SAVE_LOGICAL_NL)'…"
-        write_verilog\
-            -remove_cells "[get_physical_cells]"\
-            $::env(SAVE_LOGICAL_NL)
-    }
-
     if { [info exists ::env(SAVE_PNL)] } {
         puts "Writing powered netlist to '$::env(SAVE_PNL)'…"
         write_verilog -include_pwr_gnd $::env(SAVE_PNL)
     }
 
     if { [info exists ::env(SAVE_SDF_PNL)] } {
-        set exclude_cells "[get_timing_excluded_cells]"
-        puts "Writing nofill powered netlist to '$::env(SAVE_SDF_PNL)'…"
-        puts "Excluding $exclude_cells"
+        puts "Writing timing powered netlist to '$::env(SAVE_SDF_PNL)'…"
         write_verilog -include_pwr_gnd \
             -remove_cells "[get_timing_excluded_cells]"\
             $::env(SAVE_SDF_PNL)
     }
 
     if { [info exists ::env(SAVE_LOGICAL_PNL)] } {
-        set exclude_cells "[get_physical_cells]"
-        puts "Writing nofilldiode powered netlist to '$::env(SAVE_LOGICAL_PNL)'…"
-        puts "Excluding $exclude_cells"
+        puts "Writing logic-only powered netlist to '$::env(SAVE_LOGICAL_PNL)'…"
         write_verilog -include_pwr_gnd \
             -remove_cells "[get_physical_cells]"\
             $::env(SAVE_LOGICAL_PNL)
@@ -613,8 +590,7 @@ proc get_layers {args} {
         flags {-constrained}
 
     if { ![info exists keys(-types)] } {
-        puts stderr "\[ERROR\] Invalid usage of get_layers: -types is required."
-        return -code error
+        puts "\[ERROR\] Invalid usage of get_layers: -types is required."
     }
 
     set layers [$::tech getLayers]
