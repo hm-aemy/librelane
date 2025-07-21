@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Copyright 2025 LibreLane Contributors
 #
 # Adapted from OpenLane
