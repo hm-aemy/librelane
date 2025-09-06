@@ -957,6 +957,10 @@ class STAPostPNR(STAPrePNR):
             for lef in extra_lefs:
                 lefs.append("--input-lef")
                 lefs.append(lef)
+        if pad_lefs := self.config["PAD_LEFS"]:
+            for lef in pad_lefs:
+                lefs.append("--input-lef")
+                lefs.append(lef)
         metrics_path = os.path.join(corner_dir, "filter_unannotated_metrics.json")
         filter_unannotated_cmd = [
             self.get_openroad_path(),
@@ -1169,6 +1173,77 @@ def _migrate_ppl_mode(migrated):
             )
         return ["matching", "random_equidistant"][as_int]
     return migrated
+
+
+@Step.factory.register()
+class Padring(OpenROADStep):
+    """
+    Assembles a padring on a floor-planned ODB file using OpenROAD's built-in pad placer.
+    """
+
+    id = "OpenROAD.Padring"
+    name = "Padring Generation"
+
+    config_vars = OpenROADStep.config_vars + [
+        Variable(
+            "PDN_CONNECT_MACROS_TO_GRID",
+            bool,
+            "Enables the connection of macros to the top level power grid.",
+            default=True,
+            deprecated_names=["FP_PDN_ENABLE_MACROS_GRID"],
+        ),
+        Variable(
+            "PDN_MACRO_CONNECTIONS",
+            Optional[List[str]],
+            "Specifies explicit power connections of internal macros to the top level power grid, in the format: regex matching macro instance names, power domain vdd and ground net names, and macro vdd and ground pin names `<instance_name_rx> <vdd_net> <gnd_net> <vdd_pin> <gnd_pin>`.",
+            deprecated_names=[("FP_PDN_MACRO_HOOKS", pdn_macro_migrator)],
+        ),
+        Variable(
+            "PDN_ENABLE_GLOBAL_CONNECTIONS",
+            bool,
+            "Enables the creation of global connections in PDN generation.",
+            default=True,
+            deprecated_names=["FP_PDN_ENABLE_GLOBAL_CONNECTIONS"],
+        ),
+        Variable(
+            "PAD_CFG",
+            Optional[Path],
+            "A custom pad configuration file. If not provided, the default pad config will be used.",
+        ),
+        Variable(
+            "PAD_IO_SOUTH",
+            Optional[List[Tuple[Optional[str], Optional[str]]]],
+            "The IO pad cell name and cell instance tuples for the south row.",
+        ),
+        Variable(
+            "PAD_IO_EAST",
+            Optional[List[Tuple[Optional[str], Optional[str]]]],
+            "The IO pad cell name and cell instance tuples for the east row.",
+        ),
+        Variable(
+            "PAD_IO_NORTH",
+            Optional[List[Tuple[Optional[str], Optional[str]]]],
+            "The IO pad cell name and cell instance tuples for the north row.",
+        ),
+        Variable(
+            "PAD_IO_WEST",
+            Optional[List[Tuple[Optional[str], Optional[str]]]],
+            "The IO pad cell name and cell instance tuples for the west row.",
+        ),
+    ]
+
+    def get_script_path(self):
+        return os.path.join(get_script_dir(), "openroad", "pad.tcl")
+
+    def run(self, state_in: State, **kwargs) -> Tuple[ViewsUpdate, MetricsUpdate]:
+        kwargs, env = self.extract_env(kwargs)
+        if self.config["PAD_CFG"] is None:
+            env["PAD_CFG"] = os.path.join(
+                get_script_dir(), "openroad", "common", "pad_cfg.tcl"
+            )
+            info(f"'PAD_CFG' not explicitly set, setting it to {env['PAD_CFG']}…")
+
+        return super().run(state_in, env=env, **kwargs)
 
 
 @Step.factory.register()
